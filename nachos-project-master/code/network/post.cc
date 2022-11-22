@@ -209,7 +209,7 @@ void PostOfficeInput::PostalDelivery(void *data) {
 //
 //
 //	"box" -- mailbox ID in which to look for message
-//	"pktHdr" -- address to put: source, destination machine ID's
+//	"pktHdr" -- address to put : source, destination machine ID's
 //	"mailHdr" -- address to put: source, destination mailbox ID's
 //	"data" -- address to put: payload message data
 //----------------------------------------------------------------------
@@ -221,6 +221,8 @@ void PostOfficeInput::Receive(int box, PacketHeader *pktHdr,
     boxes[box].Get(pktHdr, mailHdr, data);
     ASSERT(mailHdr->length <= MaxMailSize);
 }
+
+
 
 //----------------------------------------------------------------------
 // PostOffice::CallBack
