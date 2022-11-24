@@ -6,8 +6,8 @@
 
 struct ipv4Header{
     uint8_t version : 4;
-    uint8_t ihl : 4;                    // Internet Header Length
-    uint8_t tos;                        // DSCP + HCN
+    uint8_t ihl : 4;                    // Internet "Header Length"
+    uint8_t tos;                        // Diffferentiated Services Code Point (DSCP) + ECN (Explicit Congestion Notification) - features related to quality of service for data streaming or Voice Over IP calls. Specifies how you handle Datagram
     uint16_t len;                       // total length
     uint16_t id;                        // identification
     uint16_t flags : 3;                 // flags
