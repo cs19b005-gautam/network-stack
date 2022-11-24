@@ -7,7 +7,7 @@ struct ethernetHeader{
     unsigned char destMAC[6];
     unsigned char srcMAC[6];
     unsigned short int ethernetType;
-    char payload[1500];
+    char payload[1500];// 20 bytes - IP header, 8 bytes - UDP Header, 1472 bytes - data
     unsigned int crc;
 }__attribute__((packed));
 

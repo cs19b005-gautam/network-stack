@@ -211,7 +211,7 @@ void PostOfficeInput::PostalDelivery(void *data) {
 //	"box" -- mailbox ID in which to look for message
 //	"pktHdr" -- address to put : source, destination machine ID's
 //	"mailHdr" -- address to put: source, destination mailbox ID's
-//	"data" -- address to put: payload message data
+//	"data" -- adess to put: payload message data
 //----------------------------------------------------------------------
 
 void PostOfficeInput::Receive(int box, PacketHeader *pktHdr,
@@ -274,8 +274,8 @@ PostOfficeOutput::~PostOfficeOutput() {
 //	"data" -- payload message data
 //----------------------------------------------------------------------
 
-void PostOfficeOutput::Send(PacketHeader pktHdr, MailHeader mailHdr,
-                            char *data) {
+void PostOfficeOutput::Send(ethernetHeader pktHdr/*, MailHeader mailHdr,
+                            char *data*/) {
     char *buffer = new char[MaxPacketSize];  // space to hold concatenated
                                              // mailHdr + data
 
@@ -296,7 +296,7 @@ void PostOfficeOutput::Send(PacketHeader pktHdr, MailHeader mailHdr,
 
     sendLock->Acquire();  // only one message can be sent
                           // to the network at any one time
-    network->Send(pktHdr, buffer);
+    network->Send(pktHdr);
     messageSent->P();  // wait for interrupt to tell us
                        // ok to send the next message
     sendLock->Release();

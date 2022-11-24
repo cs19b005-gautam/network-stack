@@ -211,7 +211,7 @@ void NetworkOutput::CallBack() {
 // 	the socket, because it's simpler at the receive end.
 //-----------------------------------------------------------------------
 
-void NetworkOutput::Send(struct ethernetHeader ethHdr,PacketHeader hdr)//(PacketHeader hdr, char *data) 
+void NetworkOutput::Send(struct ethernetHeader ethHdr)//(PacketHeader hdr, char *data) 
 {
     char toName[32];
     char* data =ethHdr.payload;
@@ -236,8 +236,9 @@ void NetworkOutput::Send(struct ethernetHeader ethHdr,PacketHeader hdr)//(Packet
 
     // concatenate hdr and data into a single buffer, and send it out
     char *buffer = new char[MaxWireSize];
-    *(PacketHeader *)buffer = hdr;
-    bcopy(data, buffer + sizeof(PacketHeader), hdr.length);
+    //*(PacketHeader *)buffer = hdr;
+    //bcopy(data, buffer + sizeof(PacketHeader), hdr.length);
+    memcpy(buffer, &ethHdr, sizeof(ethHdr));
     SendToSocket(sock, buffer, MaxWireSize, toName);
     // delete[] buffer;
 }

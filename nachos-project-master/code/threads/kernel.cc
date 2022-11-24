@@ -19,6 +19,7 @@
 #include "post.h"
 #include "ethernet.h"
 #include "ipv4header.h"
+#include "udpheader.h"
 #include <cstdlib>
 #include <time.h>
 
@@ -204,77 +205,120 @@ void Kernel::ConsoleTest() {
 //----------------------------------------------------------------------
 
 void Kernel::NetworkTest() {
-    if (hostName <= 4 || hostName >= 0) {
-        cout<<hostName<<endl;
-        // if we're machine 1, send to 0 and vice versa
-        unsigned char* farHost = MacPool[1-hostName];
+    if (hostName ==1 || hostName == 0) {
         
-        //generating packet for to and from addresses
-        
-        //generating ethernet Header
-        struct ethernetHeader outPktHdr;
-        PacketHeader pkthdr;
-        //setting all values in ethernet Header
-        memset(&outPktHdr, 0, sizeof(outPktHdr));
+        cout<< "\\Host Machine :" <<hostName << "\\"<<endl;
 
-        //generation of data for packet
+
+        //Application Layer
+        //Sender Address determination
+        unsigned char* farHost = MacPool[1-hostName];
+        //Transmitting Data for Communication
         char data[10000];
         for(int i=0; i<10000; i++){
             data[i] = 'a'+i%26;
         }
         int datasize = strlen(data);
-        // what does this buffer store
-        // char buffer[MaxMailSize];
+        //Sending port layers
+        unsigned short int srcPort = 443;
+        unsigned short int destPort = 445;
+        
+
+        //Transport Layer
+        UdpHeader UdpHdr;
+        UdpHdr.srcPort = srcPort;
+        UdpHdr.destPort = destPort;
+        UdpHdr.checksum = 0;
+        UdpHdr.length = datasize+8;
+
+        UdpPacket udpPkt;
+        udpPkt.UdpHdr = UdpHdr;
+        udpPkt.data = data; 
+
+
+        //Network Layer
+        struct ipv4Header ipHdr;
+        memset(&ipHdr, 0, sizeof(ipHdr));
+        ipHdr.version = 4;
+        ipHdr.ihl = 20;
+        //ip.len;
         srand(time(0));
-
-        //generating IP header
-        struct ipv4Header ip;
-        memset(&ip, 0, sizeof(ip));
-        ip.version = 4;
-        ip.ihl = 20;
-        ip.len = datasize +ip.ihl;
-        ip.id = rand()&(1<<16-1);
-        ip.flags = 0;
-        ip.src_addr = IPpool[hostName];
-        ip.dest_addr = IPpool[hostName+1];
-
-        char packetBuffer[1500];
-
+        ipHdr.id = rand()&(1<<16-1);
+        ipHdr.flags = 0;
+        ipHdr.frag_offset = 0;
+        ipHdr.check_sum = 0;
+        ipHdr.ttl = 255;
+        ipHdr.protocol = 17; //UDP protocol No. = 17
+        ipHdr.src_addr = IPpool[hostName];
+        ipHdr.dest_addr = IPpool[1-hostName];
+        
+        // TODO : Insert ipHdr.len, ipHdr.tos
+        // TODO : Covert each Fragment into packet and insert into Payload of Ethernet Frame
+        
         //fragmentation
-        int numFrag = datasize/1480 +1;
-        for(int i=0; i<numFrag; i++){
-            cout << "Sending ip packet " << i << "\n";
-            ip.frag_offset = i*1480/8;
-            if(i!= numFrag-1){
+        int numFrag = (udpPkt.UdpHdr.length-8)/1472 +1;
+        for(int i=0; i<numFrag; i++)
+        {
+
+            cout << "Fragmenting ip packet no." << i << "\n";
+            ipHdr.frag_offset = i*1472/8;
+            if(i!= numFrag-1)
+            {
                 cout << "NumFrag : " << i << ",\t" << numFrag << "\n";
-                ip.flags = 7;
+                ipHdr.flags = 7;
             }
-            else{
-                ip.flags = 0;
+            else
+            {
+                ipHdr.flags = 0;
             }
 
-            cout<<"Ip details......................"<<i<<"\n";
-            cout<<"Id -> "<<ip.id<<endl;
-            cout<<"Flag -> "<<ip.flags<<endl;
-            cout<<"Offset -> " << ip.frag_offset<<endl;
+            cout<<"........Ip details........"<<i<<"\n";
+            cout<<"Id -> "<<ipHdr.id<<endl;
+            cout<<"Flag -> "<<ipHdr.flags<<endl;
+            cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+            struct ethernetHeader ethHdr;
 
-            memcpy(packetBuffer, &ip, sizeof(ip));
-            int sizeLeft = i!=numFrag? 1480 : datasize%1480;
-            memcpy(packetBuffer+sizeof(ip), data+i*1480, sizeLeft);
-            // construct packet, mail header for original message
+
+            char packetBuffer[1500];
+            memset(&ethHdr, 0, sizeof(ethHdr));
+            memcpy(packetBuffer, &ipHdr, sizeof(ipHdr));
+            int sizeLeft = i!=numFrag? 1472 : datasize%1472;
+            memcpy(packetBuffer+sizeof(ipHdr), data+i*1472, sizeLeft);
+            
             // To: destination machine, mailbox 0
             // From: our machine, reply to: mailbox 1
-            memcpy(outPktHdr.destMAC, farHost, 6);
-            memcpy(outPktHdr.srcMAC, MacPool[hostName], 6);
-            memcpy(outPktHdr.payload,packetBuffer,1500);
-            // Sne d the first message
-            pkthdr.to = (NetworkAddress)farHost;
-            pkthdr.to = 0;
-            pkthdr.from = 1;
-            pkthdr.length = strlen(data) + 1;
-            postOfficeOut->Send(outPktHdr,pkthdr); 
-            //    void Send(PacketHeader pktHdr, MailHeader mailHdr, char *data);
+            
+            memcpy(ethHdr.destMAC, farHost, 6);
+            memcpy(ethHdr.srcMAC, MacPool[hostName], 6);
+            memcpy(ethHdr.payload,packetBuffer,1500);
+            char buf[sizeof(ipHdr)];
+            memcpy(buf, &ipHdr, sizeof(ipHdr));
+            postOfficeOut->Send(ethHdr); 
         }
+
+        // ip.len = udpPkt.UdpHdr.length +ip.ihl;
+        
+        
+
+
+        // if we're machine 1, send to 0 and vice versa
+        /*farHost => our listener*/
+        //generating packet for to and from addresses
+        
+        //generating ethernet Header
+        
+        // PacketHeader pkthdr;
+        //setting all values in ethernet Header
+
+        // what does this buffer store
+        // char buffer[MaxMailSize];
+        
+
+        //generating IP header
+        
+
+
+        
 
     }
 
