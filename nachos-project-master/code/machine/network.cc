@@ -150,15 +150,51 @@ void NetworkInput::CallBack() {
 // 	Read a packet, if one is buffered
 //-----------------------------------------------------------------------
 
-PacketHeader NetworkInput::Receive(char *data) {
+void NetworkInput::Receive(char *data) {
 
-    PacketHeader hdr = inHdr;
-
-    inHdr.length = 0;
-    if (hdr.length != 0) {
-        bcopy(inbox, data, hdr.length);
+    struct ethernetHeader* hdr  = (struct ethernetHeader *) data;
+    char ip[20];
+    bcopy(hdr->payload,ip,20);
+    struct ipv4Header* ipHdr =(struct ipv4Header *)ip;
+    int temp = ipHdr->frag_offset;
+    data_set.insert(make_pair(temp,hdr));
+    struct ethernetHeader* prv =NULL;
+    bool flag=true;
+    for(auto u:data_set)
+    {
+        if(prv==NULL)
+        {
+            prv = u.second;
+            //cout<<(u.second->payload+20+8);
+        }
+        else
+        {
+            bcopy(u.second->payload,ip,20);
+            struct ipv4Header* ipHdr_new =(struct ipv4Header *)ip;
+            bcopy(prv->payload,ip,20);
+            struct ipv4Header* ipHdr_prv =(struct ipv4Header *)ip;
+            if(ipHdr_new->frag_offset!=ipHdr_prv->frag_offset+ipHdr_prv->len)
+            {
+                flag=false;
+            }
+        }
     }
-    return hdr;
+    if(flag)
+    {
+        for(auto u:data_set)
+        {
+            cout<<(u.second->payload+20);
+        }
+        cout<<endl;
+    }
+    //PacketHeader hdr = inHdr;no 
+    /*
+    inHdr.length = 0;
+    if (inHdr.length != 0) {
+        bcopy(inbox, data, inHdr.length);
+    }
+    inHdr.length=0;
+    */
 }
 
 //-----------------------------------------------------------------------
@@ -229,10 +265,12 @@ void NetworkOutput::Send(struct ethernetHeader ethHdr)//(PacketHeader hdr, char 
 
     kernel->interrupt->Schedule(this, NetworkTime, NetworkSendInt);
 
+    /*
     if (RandomNumber() % 100 >= chanceToWork * 100) {  // emulate a lost packet
         DEBUG(dbgNet, "oops, lost it!");
         return;
     }
+    */
 
     // concatenate hdr and data into a single buffer, and send it out
     char *buffer = new char[MaxWireSize];

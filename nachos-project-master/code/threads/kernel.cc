@@ -205,14 +205,14 @@ void Kernel::ConsoleTest() {
 //----------------------------------------------------------------------
 
 void Kernel::NetworkTest() {
-    if (hostName ==1 || hostName == 0) {
+    if (hostName <=4 || hostName >= 0) {
         
         cout<< "\\Host Machine :" <<hostName << "\\"<<endl;
 
 
         //Application Layer
         //Sender Address determination
-        unsigned char* farHost = MacPool[1-hostName];
+        unsigned char* farHost = MacPool[hostName-1];
         //Transmitting Data for Communication
         char data[10000];
         for(int i=0; i<10000; i++){
@@ -261,7 +261,7 @@ void Kernel::NetworkTest() {
         {
 
             cout << "Fragmenting ip packet no." << i << "\n";
-            ipHdr.frag_offset = i*1472/8;
+            ipHdr.frag_offset = i*1472;
             if(i!= numFrag-1)
             {
                 cout << "NumFrag : " << i << ",\t" << numFrag << "\n";
@@ -271,18 +271,21 @@ void Kernel::NetworkTest() {
             {
                 ipHdr.flags = 0;
             }
-
+            
+            /*
             cout<<"........Ip details........"<<i<<"\n";
             cout<<"Id -> "<<ipHdr.id<<endl;
             cout<<"Flag -> "<<ipHdr.flags<<endl;
             cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+            */
             struct ethernetHeader ethHdr;
 
 
             char packetBuffer[1500];
+            int sizeLeft = i!=numFrag? 1472 : datasize%1472;
+            ipHdr.len = sizeLeft;
             memset(&ethHdr, 0, sizeof(ethHdr));
             memcpy(packetBuffer, &ipHdr, sizeof(ipHdr));
-            int sizeLeft = i!=numFrag? 1472 : datasize%1472;
             memcpy(packetBuffer+sizeof(ipHdr), data+i*1472, sizeLeft);
             
             // To: destination machine, mailbox 0
@@ -293,6 +296,8 @@ void Kernel::NetworkTest() {
             memcpy(ethHdr.payload,packetBuffer,1500);
             char buf[sizeof(ipHdr)];
             memcpy(buf, &ipHdr, sizeof(ipHdr));
+            cout<<ethHdr.payload+sizeof(ipHdr)<<endl;
+            cout<<"sending"<<sizeof(ipHdr)<<endl;
             postOfficeOut->Send(ethHdr); 
         }
 

@@ -62,7 +62,7 @@ extern "C" {
 #if defined CYGWIN
 size_t getpagesize(void);
 #else
-int getpagesize(void);
+//int getpagesize(void);
 #endif
 unsigned sleep(unsigned);
 //#ifdef SOLARIS
@@ -97,7 +97,7 @@ int select(int numBits, void *readFds, void *writeFds, void *exceptFds,
            struct timeval *timeout);
 #endif
 
-int socket(int, int, int);
+//int socket(int, int, int);
 
 #if defined(SUNOS) || defined(ULTRIX)
 long tell(int);
@@ -444,11 +444,12 @@ void ReadFromSocket(int sockID, char *buffer, int packetSize) {
 #ifdef LINUX
     socklen_t size = sizeof(uName);
 #else
-    int size = sizeof(uName);
+    unsigned int size = sizeof(uName);
 #endif
 
-    retVal = recvfrom(sockID, buffer, packetSize, 0, (struct sockaddr *)&uName,&size);
+    retVal = recvfrom(sockID, buffer, packetSize, 0, (struct sockaddr *)&uName, &size);
     struct ethernetHeader *X = (struct ethernetHeader *) buffer;
+    cout<<X->payload+20<<endl;
     printf("received [%d] bytes from %02X:%02X:%02X:%02X:%02X:%02X\n", retVal, X->srcMAC[0],X->srcMAC[1],X->srcMAC[2],X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
     
 }

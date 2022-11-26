@@ -23,6 +23,65 @@ string char_to_string(char *MAC) {
 	return srcMac;
 }
 
+void when_set(int& s1,struct sockaddr_un & saddr1,char buf[],map<string, int>&table,map<int, int>& portmap,int not_allowed)
+{
+	cout<<"Got it in : "<<s1<<endl;
+	unsigned int AddrSize = sizeof(saddr1);
+	// recvFrom
+	int retsz = recvfrom(s1, buf, sizeof(buf), 0, (struct sockaddr *)&saddr1, &AddrSize);
+	struct ethernetHeader *X;
+
+	// in what format is X being returned
+	X = (struct ethernetHeader *)buf;
+
+
+	string srcMac = char_to_string(X->srcMAC);
+	table[srcMac] = not_allowed;
+	cout<<"srcmac is "<<srcMac<<endl;
+	printf("--> %d\n", table[char_to_string(X->srcMAC)]);
+	printf("received %d bytes on S1 from %02X:%02X:%02X:%02X:%02X:%02X\n", retsz, X->srcMAC[0], X->srcMAC[1], X->srcMAC[2], X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
+
+	cout << "===========TABLE=========="<<endl;
+
+	
+	for (auto itr = table.begin(); itr != table.end(); itr++){
+		std::cout << itr->first << " " << itr->second << std::endl;
+	}
+	cout<<">>>> BUFF1"<<buf<<endl;
+	cout<<">>>> X srcMAC:"<<X->srcMAC<<endl;
+	cout<<">>>> X destMAC:"<<X->destMAC<<endl;
+	cout << "=========================="<<endl;
+
+
+	if (table.find(char_to_string(X->destMAC)) != table.end())
+	{
+		int dport = table[char_to_string(X->destMAC)];
+		char name[100]; // just path for nachos instance
+		sprintf(name, "/tmp/N%d", dport);
+		struct sockaddr_un dname;
+		dname.sun_family = AF_UNIX;
+		strcpy(dname.sun_path, name);
+		int rv = sendto(portmap[dport], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
+		printf("Send [%d] bytes to [%s]\n", rv, name);
+	}
+	else
+	{
+		for (int k = 1; k <= 4; k++)
+		{
+			if (k != not_allowed)
+			{
+				char name[100]; 
+				sprintf(name, "/tmp/N%d", k);
+				struct sockaddr_un dname;
+				dname.sun_family = AF_UNIX;
+				strcpy(dname.sun_path, name);
+				int rv = sendto(portmap[k], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
+				printf("Broadcast Send [%d] bytes to [%s]\n", rv, name);
+			}
+		}
+	}
+}
+
 int main()
 {
 	std::cout << "cleaning S[1-4] & N[1-4]..." << std::endl; // why do we need to clean all the S[1-4] codes ??
@@ -104,184 +163,20 @@ int main()
 
 		if (FD_ISSET(s1, &rd))
 		{
-			unsigned int AddrSize = sizeof(saddr1);
-			// recvFrom
-			int retsz = recvfrom(s1, buf, sizeof(buf), 0, (struct sockaddr *)&saddr1, &AddrSize);
-			struct ethernetHeader *X;
-
-			// in what format is X being returned
-			X = (struct ethernetHeader *)buf;
-
-
-			string srcMac = char_to_string(X->srcMAC);
-			table[srcMac] = 1;
-			cout<<"srcmac is "<<srcMac<<endl;
-			printf("--> %d\n", table[char_to_string(X->srcMAC)]);
-			printf("received %d bytes on S1 from %02X:%02X:%02X:%02X:%02X:%02X\n", retsz, X->srcMAC[0], X->srcMAC[1], X->srcMAC[2], X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
-			
-			cout << "===========TABLE=========="<<endl;
-
-			
-			for (auto itr = table.begin(); itr != table.end(); itr++){
-				std::cout << itr->first << " " << itr->second << std::endl;
-			}
-			cout<<">>>> BUFF1"<<buf<<endl;
-			cout<<">>>> X srcMAC:"<<X->srcMAC<<endl;
-			cout<<">>>> X destMAC:"<<X->destMAC<<endl;
-			cout << "=========================="<<endl;
-
-
-			if (table.find(char_to_string(X->destMAC)) != table.end())
-			{
-				int dport = table[char_to_string(X->destMAC)];
-				char name[100]; // just path for nachos instance
-				sprintf(name, "/tmp/N%d", dport);
-				struct sockaddr_un dname;
-				dname.sun_family = AF_UNIX;
-				strcpy(dname.sun_path, name);
-				int rv = sendto(portmap[dport], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-				printf("Send [%d] bytes to [%s]\n", rv, name);
-			}
-			else
-			{
-				for (int k = 1; k <= 4; k++)
-				{
-					if (k != 1)
-					{
-						char name[100];
-						sprintf(name, "/tmp/N%d", k);
-						struct sockaddr_un dname;
-						dname.sun_family = AF_UNIX;
-						strcpy(dname.sun_path, name);
-						int rv = sendto(portmap[k], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-						printf("Broadcast Send [%d] bytes to [%s]\n", rv, name);
-					}
-				}
-			}
+			when_set( s1,saddr1,buf,table,portmap,1);
 		}
 
 		if (FD_ISSET(s2, &rd))
 		{
-			unsigned int AddrSize = sizeof(saddr2);
-
-			int retsz = recvfrom(s2, buf, sizeof(buf), 0, (struct sockaddr *)&saddr2, &AddrSize);
-			struct ethernetHeader *X;
-			X = (struct ethernetHeader *)buf;
-			//printf("received %d bytes on S2 from %02X:%02X:%02X:%02X:%02X:%02X\n", retsz, X->srcMAC[0], X->srcMAC[1], X->srcMAC[2], X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
-			//printf("To %02X:%02X:%02X:%02X:%02X:%02X\n", X->destMAC[0], X->destMAC[1], X->destMAC[2], X->destMAC[3], X->destMAC[4], X->destMAC[5]);
-			//printf("--> %d\n", table[string(X->destMAC)]);
-
-
-			string srcMac = char_to_string(X->srcMAC);
-			table[srcMac] = 2;
-			cout<<"srcmac is "<<srcMac<<endl;
-			if (table.find(char_to_string(X->destMAC)) != table.end())
-			{
-				int dport = table[char_to_string(X->destMAC)];
-				char name[100];
-				sprintf(name, "/tmp/N%d", dport);
-				struct sockaddr_un dname;
-				dname.sun_family = AF_UNIX;
-				strcpy(dname.sun_path, name);
-				int rv = sendto(portmap[dport], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-				printf("Send [%d] bytes to [%s]\n", rv, name);
-			}
-			else
-			{
-				for (int k = 1; k <= 4; k++)
-				{
-					if (k != 2)
-					{
-						char name[100];
-						sprintf(name, "/tmp/N%d", k);
-						struct sockaddr_un dname;
-						dname.sun_family = AF_UNIX;
-						strcpy(dname.sun_path, name);
-						int rv = sendto(portmap[k], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-					
-						printf("Broadcast Send [%d] bytes to [%s]\n", rv, name);
-
-					}
-				}
-			}
-
-			printf("recieved on S2");
+			when_set( s2,saddr2,buf,table,portmap,2);
 		}
 		if (FD_ISSET(s3, &rd)){
-			unsigned int AddrSize = sizeof(saddr3);
-			int retsz = recvfrom(s3, buf, sizeof(buf), 0, (struct sockaddr *)&saddr3, &AddrSize);
-			struct ethernetHeader *X;
-			X = (struct ethernetHeader *)buf;
-            string srcMac = char_to_string(X->srcMAC);
-			table[srcMac] = 3;
-			cout<<"srcmac is "<<srcMac<<endl;
-			if (table.find(char_to_string(X->destMAC)) != table.end()){
-				int dport = table[char_to_string(X->destMAC)];
-				char name[100];
-				sprintf(name, "/tmp/N%d", dport);
-				struct sockaddr_un dname;
-				dname.sun_family = AF_UNIX;
-				strcpy(dname.sun_path, name);
-				int rv = sendto(portmap[dport], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-				printf("Send [%d] bytes to [%s]\n", rv, name);
-			}
-			else{
-				for (int k = 1; k <= 4; k++){
-					if (k != 3){
-						char name[100];
-						sprintf(name, "/tmp/N%d", k);
-						struct sockaddr_un dname;
-						dname.sun_family = AF_UNIX;
-						strcpy(dname.sun_path, name);
-						int rv = sendto(portmap[k], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-						printf("Broadcast Send [%d] bytes to [%s]\n", rv, name);
-
-					}
-				}
-			}
-
-			printf("recieved on S3");
+			when_set( s3,saddr3,buf,table,portmap,3);
 		}
 
 		if (FD_ISSET(s4, &rd))
 		{
-			unsigned int AddrSize = sizeof(saddr4);
-			int retsz = recvfrom(s4, buf, sizeof(buf), 0, (struct sockaddr *)&saddr4, &AddrSize);
-			struct ethernetHeader *X;
-			X = (struct ethernetHeader *)buf;
-            string srcMac = char_to_string(X->srcMAC);
-			table[srcMac] = 4;
-			cout<<"srcmac is "<<srcMac<<endl;
-			if (table.find(char_to_string(X->destMAC)) != table.end())
-			{
-				int dport = table[char_to_string(X->destMAC)];
-				char name[100];
-				sprintf(name, "/tmp/N%d", dport);
-				struct sockaddr_un dname;
-				dname.sun_family = AF_UNIX;
-				strcpy(dname.sun_path, name);
-				int rv = sendto(portmap[dport], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-				printf("Send [%d] bytes to [%s]\n", rv, name);
-			}
-			else
-			{
-				for (int k = 1; k <= 4; k++)
-				{
-					if (k != 4)
-					{
-						char name[100];
-						sprintf(name, "/tmp/N%d", k);
-						struct sockaddr_un dname;
-						dname.sun_family = AF_UNIX;
-						strcpy(dname.sun_path, name);
-						int rv = sendto(portmap[k], buf, retsz, 0, (struct sockaddr *)&dname, sizeof(dname));
-						printf("Broadcast Send [%d] bytes to [%s]\n", rv, name);
-						
-					}
-				}
-			}
-
-			printf("recieved on S4");
+			when_set( s4,saddr4,buf,table,portmap,4);
 		}
 	}
 

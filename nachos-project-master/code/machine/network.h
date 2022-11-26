@@ -19,7 +19,8 @@
 #include "utility.h"
 #include "callback.h"
 #include "ethernet.h"
-
+#include "set"
+#include <utility>
 // Network address -- uniquely identifies a machine.  This machine's ID
 //  is given on the command line.
 typedef int NetworkAddress;
@@ -59,7 +60,8 @@ class NetworkInput : public CallBackObj {
     // Allocate and initialize network input driver
     ~NetworkInput();  // De-allocate the network input driver data
 
-    PacketHeader Receive(char *data);
+    //PacketHeader Receive(char *data);
+    void Receive(char *data);
     // Poll the network for incoming messages.
     // If there is a packet waiting, copy the
     // packet into "data" and return the header.
@@ -71,7 +73,7 @@ class NetworkInput : public CallBackObj {
    private:
     int sock;           // UNIX socket number for incoming packets
     char sockName[32];  // File name corresponding to UNIX socket
-
+    std::set<std::pair<int,struct ethernetHeader*> >data_set;
     CallBackObj *callWhenAvail;  // Interrupt handler, signalling packet has
                                  // 	arrived.
     bool packetAvail;            // Packet has arrived, can be pulled off of
