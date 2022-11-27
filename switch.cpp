@@ -28,7 +28,7 @@ void when_set(int& s1,struct sockaddr_un & saddr1,char buf[],map<string, int>&ta
 	cout<<"Got it in : "<<s1<<endl;
 	unsigned int AddrSize = sizeof(saddr1);
 	// recvFrom
-	int retsz = recvfrom(s1, buf, sizeof(buf), 0, (struct sockaddr *)&saddr1, &AddrSize);
+	int retsz = recvfrom(s1, buf, 1526, 0, (struct sockaddr *)&saddr1, &AddrSize);
 	struct ethernetHeader *X;
 
 	// in what format is X being returned

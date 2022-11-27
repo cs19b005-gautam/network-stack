@@ -296,7 +296,7 @@ void Kernel::NetworkTest() {
             memcpy(ethHdr.payload,packetBuffer,1500);
             char buf[sizeof(ipHdr)];
             memcpy(buf, &ipHdr, sizeof(ipHdr));
-            cout<<ethHdr.payload+sizeof(ipHdr)<<endl;
+            //cout<<ethHdr.payload+sizeof(ipHdr)<<endl;
             cout<<"sending"<<sizeof(ipHdr)<<endl;
             postOfficeOut->Send(ethHdr); 
         }

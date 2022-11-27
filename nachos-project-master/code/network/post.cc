@@ -181,8 +181,10 @@ void PostOfficeInput::PostalDelivery(void *data) {
     char *buffer = new char[MaxPacketSize];
 
     for (;;) {
+        cout<<"Inside Postal Delivery"<<endl;
         // first, wait for a message
         _this->messageAvailable->P();
+        cout<<"calling network receive"<<endl;
         _this->network->Receive(buffer);//pktHdr = _this->network->Receive(buffer);
 
         // put into mailbox

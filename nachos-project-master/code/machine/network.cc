@@ -79,8 +79,9 @@ void NetworkInput::CallBack() {
     if(ret1==0 || ret2==0){
         // 26 is ethernet Header length
         struct ipv4Header * ipHdr = (struct ipv4Header *) (buffer+26);
+        printf("received %d\n",ipHdr->frag_offset);
         if(ipHdr->flags==0 && ipHdr->frag_offset==0){
-            printf("1 completed packet received\n");
+            printf("1 completed packet received %d\n",ipHdr->id);
         }
         else{
             string keyVals[] = {to_string(ipHdr->src_addr), to_string(ipHdr->dest_addr), to_string(ipHdr->protocol), to_string(ipHdr->id)};

@@ -449,7 +449,7 @@ void ReadFromSocket(int sockID, char *buffer, int packetSize) {
 
     retVal = recvfrom(sockID, buffer, packetSize, 0, (struct sockaddr *)&uName, &size);
     struct ethernetHeader *X = (struct ethernetHeader *) buffer;
-    cout<<X->payload+20<<endl;
+    //cout<<X->payload+20<<endl;
     printf("received [%d] bytes from %02X:%02X:%02X:%02X:%02X:%02X\n", retVal, X->srcMAC[0],X->srcMAC[1],X->srcMAC[2],X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
     
 }
