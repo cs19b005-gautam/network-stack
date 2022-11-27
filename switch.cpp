@@ -16,7 +16,7 @@
 using namespace std;
 
 
-string char_to_string(char *MAC) {
+string char_to_string(unsigned char *MAC) {
 	char *str = new char [100];
 	sprintf(str,"%02X:%02X:%02X:%02X:%02X:%02X", MAC[0], MAC[1], MAC[2], MAC[3], MAC[4], MAC[5]);
 	string srcMac = string(str);
@@ -41,6 +41,12 @@ void when_set(int& s1,struct sockaddr_un & saddr1,char buf[],map<string, int>&ta
 	printf("--> %d\n", table[char_to_string(X->srcMAC)]);
 	printf("received %d bytes on S1 from %02X:%02X:%02X:%02X:%02X:%02X\n", retsz, X->srcMAC[0], X->srcMAC[1], X->srcMAC[2], X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
 
+	struct ipv4Header ipHdr = *(struct ipv4Header *) (buf+26);
+	cout<<"........Ip details........"<<"\n";
+	cout<<"Id -> "<<ipHdr.id<<endl;
+	cout<<"Flag -> "<<ipHdr.flags<<endl;
+	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+	
 	cout << "===========TABLE=========="<<endl;
 
 	

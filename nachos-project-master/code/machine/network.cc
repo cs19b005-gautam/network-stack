@@ -73,13 +73,19 @@ void NetworkInput::CallBack() {
     struct ethernetHeader *X = (struct ethernetHeader *)buffer;
 
     int ret1 = memcmp(X->destMAC, MacPool[kernel->hostName], 6);
-    int ret2 = memcmp(X->destMAC, MacPool[0], 6);
+    //int ret2 = memcmp(X->destMAC, MacPool[0], 6);
 
 
-    if(ret1==0 || ret2==0){
+    if(ret1==0 ){
         // 26 is ethernet Header length
-        struct ipv4Header * ipHdr = (struct ipv4Header *) (buffer+26);
+        struct ipv4Header * ipHdr = (struct ipv4Header *) (buffer+sizeof(*X));
         printf("received %d\n",ipHdr->frag_offset);
+        cout<<X->payload+20<<endl;
+        cout<<"........Ip details........"<<"\n";
+        cout<<"Id -> "<<ipHdr->id<<endl;
+        cout<<"Flag -> "<<ipHdr->flags<<endl;
+        cout<<"Offset -> " << ipHdr->frag_offset<<endl;
+        
         if(ipHdr->flags==0 && ipHdr->frag_offset==0){
             printf("1 completed packet received %d\n",ipHdr->id);
         }
@@ -277,7 +283,13 @@ void NetworkOutput::Send(struct ethernetHeader ethHdr)//(PacketHeader hdr, char 
     char *buffer = new char[MaxWireSize];
     //*(PacketHeader *)buffer = hdr;
     //bcopy(data, buffer + sizeof(PacketHeader), hdr.length);
-    memcpy(buffer, &ethHdr, sizeof(ethHdr));
+    memcpy(buffer, &ethHdr, 1526);
+    struct ipv4Header ipHdr = *(struct ipv4Header *) (buffer+sizeof(ethHdr));
+    cout<<"........Ip details........"<<"\n";
+	cout<<"Id -> "<<ipHdr.id<<endl;
+	cout<<"Flag -> "<<ipHdr.flags<<endl;
+	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+	
     SendToSocket(sock, buffer, MaxWireSize, toName);
     // delete[] buffer;
 }
