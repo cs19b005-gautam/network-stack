@@ -54,14 +54,26 @@ class PacketHeader {
 // generator, by changing the arguments to RandomInit() in Initialize().
 // The random number generator is used to choose which packets to drop.
 
+class pack{
+   public:
+   int id;
+   ethernetHeader second;
+   pack(int a,ethernetHeader b){
+      id =a;
+      second = b;
+   }
+      bool operator<(const pack& t) const
+    {
+        return (this->id < t.id);
+    }
+};
 class NetworkInput : public CallBackObj {
    public:
     NetworkInput(CallBackObj *toCall);
     // Allocate and initialize network input driver
     ~NetworkInput();  // De-allocate the network input driver data
 
-    //PacketHeader Receive(char *data);
-    void Receive(char *data);
+    ethernetHeader Receive(char *data);
     // Poll the network for incoming messages.
     // If there is a packet waiting, copy the
     // packet into "data" and return the header.
@@ -73,14 +85,16 @@ class NetworkInput : public CallBackObj {
    private:
     int sock;           // UNIX socket number for incoming packets
     char sockName[32];  // File name corresponding to UNIX socket
-    std::set<std::pair<int,struct ethernetHeader*> >data_set;
+    std::set<pack >data_set;
+
     CallBackObj *callWhenAvail;  // Interrupt handler, signalling packet has
                                  // 	arrived.
     bool packetAvail;            // Packet has arrived, can be pulled off of
                                  //   network
-    PacketHeader inHdr;          // Information about arrived packet
-    char inbox[MaxPacketSize];   // Data for arrived packet
+    ethernetHeader inHdr;          // Information about arrived packet
+    char inbox[MaxWireSize];   // Data for arrived packet
 };
+
 
 class NetworkOutput : public CallBackObj {
    public:

@@ -261,7 +261,7 @@ void Kernel::NetworkTest() {
         {
 
             cout << "Fragmenting ip packet no." << i << "\n";
-            ipHdr.frag_offset = i*1472;
+            ipHdr.frag_offset = (i*1472)/8;
             if(i!= numFrag-1)
             {
                 cout << "NumFrag : " << i << ",\t" << numFrag << "\n";
@@ -272,12 +272,12 @@ void Kernel::NetworkTest() {
                 ipHdr.flags = 0;
             }
             
-            /*
+            
             cout<<"........Ip details........"<<i<<"\n";
             cout<<"Id -> "<<ipHdr.id<<endl;
             cout<<"Flag -> "<<ipHdr.flags<<endl;
             cout<<"Offset -> " << ipHdr.frag_offset<<endl;
-            */
+            
             struct ethernetHeader ethHdr;
 
 

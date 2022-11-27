@@ -29,12 +29,12 @@
 //	"data" -- payload data
 //----------------------------------------------------------------------
 
-Mail::Mail(struct ethernetHeader pktH, char *msgData){//(PacketHeader pktH, MailHeader mailH, char *msgData) {
-    //ASSERT(mailH.length <= MaxMailSize);
+Mail::Mail(PacketHeader pktH, MailHeader mailH, char *msgData) {
+    ASSERT(mailH.length <= MaxMailSize);
 
     pktHdr = pktH;
-    //mailHdr = mailH;
-    bcopy(msgData, data, 1500);//mailHdr.length);
+    mailHdr = mailH;
+    bcopy(msgData, data, mailHdr.length);
 }
 
 //----------------------------------------------------------------------
@@ -65,13 +65,13 @@ MailBox::~MailBox() { delete messages; }
 //	"pktHdr" -- source, destination machine ID's
 //	"mailHdr" -- source, destination mailbox ID's
 //----------------------------------------------------------------------
-/*
+
 static void PrintHeader(PacketHeader pktHdr, MailHeader mailHdr) {
     cout << "From (" << pktHdr.from << ", " << mailHdr.from << ") to ("
          << pktHdr.to << ", " << mailHdr.to << ") bytes " << mailHdr.length
          << "\n";
 }
-*/
+
 //----------------------------------------------------------------------
 // MailBox::Put
 // 	Add a message to the mailbox.  If anyone is waiting for message
@@ -85,8 +85,8 @@ static void PrintHeader(PacketHeader pktHdr, MailHeader mailHdr) {
 //	"data" -- payload message data
 //----------------------------------------------------------------------
 
-void MailBox::Put(struct ethernetHeader pktHdr, char *data) {//(PacketHeader pktHdr, MailHeader mailHdr, char *data) {
-    Mail *mail = new Mail(pktHdr, data);
+void MailBox::Put(PacketHeader pktHdr, MailHeader mailHdr, char *data) {
+    Mail *mail = new Mail(pktHdr, mailHdr, data);
 
     messages->Append(mail);  // put on the end of the list of
                              // arrived messages, and wake up
@@ -105,19 +105,18 @@ void MailBox::Put(struct ethernetHeader pktHdr, char *data) {//(PacketHeader pkt
 //	"data" -- address to put: payload message data
 //----------------------------------------------------------------------
 
-void MailBox::Get(struct ethernetHeader*pktHdr, char *data){//(PacketHeader *pktHdr, MailHeader *mailHdr, char *data) {
+void MailBox::Get(PacketHeader *pktHdr, MailHeader *mailHdr, char *data) {
     DEBUG(dbgNet, "Waiting for mail in mailbox");
     Mail *mail = messages->RemoveFront();  // remove message from list;
                                            // will wait if list is empty
 
     *pktHdr = mail->pktHdr;
-    //*mailHdr = mail->mailHdr;
+    *mailHdr = mail->mailHdr;
     if (debug->IsEnabled('n')) {
         cout << "Got mail from mailbox: ";
-        //PrintHeader(*pktHdr, *mailHdr);
+        PrintHeader(*pktHdr, *mailHdr);
     }
-    bcopy(mail->data, data, 1500);
-    //bcopy(mail->data, data, mail->mailHdr.length);
+    bcopy(mail->data, data, mail->mailHdr.length);
     // copy the message data into
     // the caller's buffer
     delete mail;  // we've copied out the stuff we
@@ -175,20 +174,31 @@ PostOfficeInput::~PostOfficeInput() {
 
 void PostOfficeInput::PostalDelivery(void *data) {
     PostOfficeInput *_this = (PostOfficeInput *)data;
-    //PacketHeader pktHdr;
-    //struct ethernetHeader ethHdr;
-    //MailHeader mailHdr;
+    ethernetHeader pktHdr;
+    MailHeader mailHdr;
     char *buffer = new char[MaxPacketSize];
 
     for (;;) {
-        cout<<"Inside Postal Delivery"<<endl;
         // first, wait for a message
+        cout<<"we will wait"<<endl;
         _this->messageAvailable->P();
-        cout<<"calling network receive"<<endl;
-        _this->network->Receive(buffer);//pktHdr = _this->network->Receive(buffer);
+        pktHdr = _this->network->Receive(buffer);
+        cout<<"Got back to Delivery"<<endl;
+
+        /*
+        mailHdr = *(MailHeader *)buffer;
+        if (debug->IsEnabled('n')) {
+            cout << "Putting mail into mailbox: ";
+            PrintHeader(pktHdr, mailHdr);
+        }
+
+        // check that arriving message is legal!
+        ASSERT(0 <= mailHdr.to && mailHdr.to < _this->numBoxes);
+        ASSERT(mailHdr.length <= MaxMailSize);
+        */
 
         // put into mailbox
-        //_this->boxes[mailHdr.to].Put(ethHdr,buffer );
+        //_this->boxes[mailHdr.to].Put(pktHdr, mailHdr,buffer + sizeof(MailHeader));
     }
 }
 
@@ -202,20 +212,18 @@ void PostOfficeInput::PostalDelivery(void *data) {
 //
 //
 //	"box" -- mailbox ID in which to look for message
-//	"pktHdr" -- address to put : source, destination machine ID's
+//	"pktHdr" -- address to put: source, destination machine ID's
 //	"mailHdr" -- address to put: source, destination mailbox ID's
-//	"data" -- adess to put: payload message data
+//	"data" -- address to put: payload message data
 //----------------------------------------------------------------------
 
-void PostOfficeInput::Receive(int box, ethernetHeader  *pktHdr ,char *data)//(int box, PacketHeader *pktHdr,MailHeader *mailHdr, char *data) 
-{
+void PostOfficeInput::Receive(int box, PacketHeader *pktHdr,
+                              MailHeader *mailHdr, char *data) {
     ASSERT((box >= 0) && (box < numBoxes));
 
-    boxes[box].Get(pktHdr,  data);
-    //ASSERT((mailHdr->length <= MaxMailSize));
+    boxes[box].Get(pktHdr, mailHdr, data);
+    ASSERT(mailHdr->length <= MaxMailSize);
 }
-
-
 
 //----------------------------------------------------------------------
 // PostOffice::CallBack

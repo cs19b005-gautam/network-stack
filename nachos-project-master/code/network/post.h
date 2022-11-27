@@ -63,14 +63,12 @@ class MailHeader {
 
 class Mail {
    public:
-    Mail(struct ethernetHeader pktH, char *msgData);
-    //Mail(PacketHeader pktH, MailHeader mailH, char *msgData);
+    Mail(PacketHeader pktH, MailHeader mailH, char *msgData);
     // Initialize a mail message by
     // concatenating the headers to the data
 
-    struct ethernetHeader pktHdr;
-    //PacketHeader pktHdr;     // Header appended by Network
-    //MailHeader mailHdr;      // Header appended by PostOffice
+    PacketHeader pktHdr;     // Header appended by Network
+    MailHeader mailHdr;      // Header appended by PostOffice
     char data[MaxMailSize];  // Payload -- message data
 };
 
@@ -84,9 +82,9 @@ class MailBox {
     MailBox();   // Allocate and initialize mail box
     ~MailBox();  // De-allocate mail box
 
-    void Put(struct ethernetHeader pktHdr, char *data);//(PacketHeader pktHdr, MailHeader mailHdr, char *data);
+    void Put(PacketHeader pktHdr, MailHeader mailHdr, char *data);
     // Atomically put a message into the mailbox
-    void Get(struct ethernetHeader*pktHdr, char *data);//(PacketHeader *pktHdr, MailHeader *mailHdr, char *data);
+    void Get(PacketHeader *pktHdr, MailHeader *mailHdr, char *data);
     // Atomically get a message out of the
     // mailbox (and wait if there is no message
     // to get!)
@@ -109,7 +107,8 @@ class PostOfficeInput : public CallBackObj {
     PostOfficeInput(int nBoxes);  // Allocate and initialize Post Office
     ~PostOfficeInput();           // De-allocate Post Office data
 
-    void Receive(int box, ethernetHeader  *pktHdr, char *data);//(int box, PacketHeader *pktHdr, MailHeader *mailHdr,char *data);
+    void Receive(int box, PacketHeader *pktHdr, MailHeader *mailHdr,
+                 char *data);
     // Retrieve a message from "box".  Wait if
     // there is no message in the box.
 

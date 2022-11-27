@@ -22,11 +22,12 @@
 //   	"toCall" is the interrupt handler to call when packet arrives
 //-----------------------------------------------------------------------
 
+
 NetworkInput::NetworkInput(CallBackObj *toCall) {
     // set up the stuff to emulate asynchronous interrupts
     callWhenAvail = toCall;
     packetAvail = FALSE;
-    inHdr.length = 0;
+    inHdr.srcMAC[0] = 0;
 
     sock = OpenSocket();
     sprintf(sockName, "/tmp/N%d", kernel->hostName);
@@ -61,147 +62,74 @@ NetworkInput::~NetworkInput() {
 void NetworkInput::CallBack() {
     // schedule the next time to poll for a packet
     kernel->interrupt->Schedule(this, NetworkTime, NetworkRecvInt);
-
-    if (inHdr.length != 0)  // do nothing if packet is already buffered
+    
+    if (inHdr.srcMAC[0] != 0)  // do nothing if packet is already buffered
         return;
     if (!PollSocket(sock))  // do nothing if no packet to be read
         return;
 
     // otherwise, read packet in
-    char *buffer = new char[MaxWireSize+1];
+    char *buffer = new char[MaxWireSize];
     ReadFromSocket(sock, buffer, MaxWireSize);
-    struct ethernetHeader *X = (struct ethernetHeader *)buffer;
 
-    int ret1 = memcmp(X->destMAC, MacPool[kernel->hostName], 6);
-    //int ret2 = memcmp(X->destMAC, MacPool[0], 6);
+    // divide packet into header and data
+    inHdr = *(ethernetHeader *)buffer;
+    ASSERT((inHdr.destMAC[0] == MacPool[kernel->hostName][0])&&(inHdr.destMAC[1] == MacPool[kernel->hostName][1]) 
+    &&(inHdr.destMAC[2] == MacPool[kernel->hostName][2])&&(inHdr.destMAC[3] == MacPool[kernel->hostName][3])
+    &&(inHdr.destMAC[4] == MacPool[kernel->hostName][4])&&(inHdr.destMAC[5] == MacPool[kernel->hostName][5]));
+    bcopy(buffer , inbox, MaxWireSize);
+    buffer[MaxWireSize-1]='\0';
+    delete[] buffer;
 
-
-    if(ret1==0 ){
-        // 26 is ethernet Header length
-        struct ipv4Header * ipHdr = (struct ipv4Header *) (buffer+sizeof(*X));
-        printf("received %d\n",ipHdr->frag_offset);
-        cout<<X->payload+20<<endl;
-        cout<<"........Ip details........"<<"\n";
-        cout<<"Id -> "<<ipHdr->id<<endl;
-        cout<<"Flag -> "<<ipHdr->flags<<endl;
-        cout<<"Offset -> " << ipHdr->frag_offset<<endl;
-        
-        if(ipHdr->flags==0 && ipHdr->frag_offset==0){
-            printf("1 completed packet received %d\n",ipHdr->id);
-        }
-        else{
-            string keyVals[] = {to_string(ipHdr->src_addr), to_string(ipHdr->dest_addr), to_string(ipHdr->protocol), to_string(ipHdr->id)};
-            string key = "";
-            cout << "Packet Offset : " << ipHdr->frag_offset << "\t" << ipHdr->flags << endl;
-            for(int i=0; i<4; i++){
-                key += keyVals[i];
-            }
-
-            buffer[MaxWireSize] = '\0';
-            string bufferStr = "";
-
-
-            for(int i=26; i<MaxWireSize; i++){
-                bufferStr += buffer[i];
-            }
-            cout << endl;
-
-            /*kernel->ipDfragTable[key].end();
-            auto last_item = kernel->ipDfragTable[key].end();
-            last_item--;
-            
-
-            if(last->flags ==0){
-                int offset = last->offset;
-                cout << "Size of set and offset : " << offset << " " << offset/185 +1 << kernel->ipDfragTable[key].size() << endl;
-                bool condi = offset/185 +1 == kernel->ipDfragTable[key].size();
-
-                if(condi){
-                    // here we receive full packet
-                    printf("Final packet reeived from ip %s.......\n", to_string(last->src_addr));
-                    string final_data = "";
-                    for(auto hdr : kernel->ipDfragTable[key]){
-                        cout << "Offset" << hdr.first << endl;
-                        final_data += hdr.second.substr(sizeof(struct ipv4Header));
-                    }
-                    cout << "Final Data Received : " final_data.size() << endl; 
-
-                    kernel->ipDfragTabole.erase(key);
-                }
-            }
-            */
-        }
-    }
-    else{
-        kernel->stats->numPacketsDropped++;
-
-        delete buffer;
-        return;
-    }
-    // // divide packet into header and data
-    // inHdr = *(PacketHeader *)buffer;
-    // ASSERT((inHdr.to == kernel->hostName) && (inHdr.length <= MaxPacketSize));
-    // bcopy(buffer + sizeof(PacketHeader), inbox, inHdr.length);
-    // delete[] buffer;
-
-    // DEBUG(dbgNet, "Network received packet from " << inHdr.from << ", length "
-                                                //   << inHdr.length);
+    //DEBUG(dbgNet, "Network received packet from " << inHdr.from << ", length "  << inHdr.length);
     kernel->stats->numPacketsRecvd++;
 
     // tell post office that the packet has arrived
-    // callWhenAvail->CallBack();
+    callWhenAvail->CallBack();
 }
 
 //-----------------------------------------------------------------------
-// NetworkInput::Receive
+// NetworkInput::Receive 0 1472 2944 4416 5888 7360 640
 // 	Read a packet, if one is buffered
 //-----------------------------------------------------------------------
 
-void NetworkInput::Receive(char *data) {
+ethernetHeader NetworkInput::Receive(char *data) {
+    ethernetHeader hdr = inHdr;
 
-    struct ethernetHeader* hdr  = (struct ethernetHeader *) data;
-    char ip[20];
-    bcopy(hdr->payload,ip,20);
-    struct ipv4Header* ipHdr =(struct ipv4Header *)ip;
-    int temp = ipHdr->frag_offset;
-    data_set.insert(make_pair(temp,hdr));
-    struct ethernetHeader* prv =NULL;
+    inHdr.srcMAC[0] = 0;
+    ipv4Header ipHdr = *(ipv4Header * )hdr.payload;
+    cout<<"Got the data from IP"<<endl;
+    cout<<"Id -> "<<ipHdr.id<<endl;
+	cout<<"Flag -> "<<ipHdr.flags<<endl;
+	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+    int v =ipHdr.frag_offset;
+	data_set.insert(pack(v,hdr));
+    v = 0;
     bool flag=true;
+    bool end=false;
     for(auto u:data_set)
     {
-        if(prv==NULL)
+        ipHdr = *(ipv4Header * )u.second.payload;
+        if(ipHdr.flags==0)
+        end=true;
+        if(v==8*ipHdr.frag_offset)
         {
-            prv = u.second;
-            //cout<<(u.second->payload+20+8);
+            v +=ipHdr.len;
         }
         else
         {
-            bcopy(u.second->payload,ip,20);
-            struct ipv4Header* ipHdr_new =(struct ipv4Header *)ip;
-            bcopy(prv->payload,ip,20);
-            struct ipv4Header* ipHdr_prv =(struct ipv4Header *)ip;
-            if(ipHdr_new->frag_offset!=ipHdr_prv->frag_offset+ipHdr_prv->len)
-            {
-                flag=false;
-            }
+            flag =false;
         }
     }
-    if(flag)
+    if(flag&&end)
     {
         for(auto u:data_set)
-        {
-            cout<<(u.second->payload+20);
-        }
-        cout<<endl;
+            cout<<u.second.payload+sizeof(ipv4Header)<<endl;
     }
-    //PacketHeader hdr = inHdr;no 
-    /*
-    inHdr.length = 0;
-    if (inHdr.length != 0) {
-        bcopy(inbox, data, inHdr.length);
+    if (hdr.srcMAC[0] != 0) {
+        bcopy(inbox, data, MaxWireSize);
     }
-    inHdr.length=0;
-    */
+    return hdr;
 }
 
 //-----------------------------------------------------------------------
@@ -284,11 +212,13 @@ void NetworkOutput::Send(struct ethernetHeader ethHdr)//(PacketHeader hdr, char 
     //*(PacketHeader *)buffer = hdr;
     //bcopy(data, buffer + sizeof(PacketHeader), hdr.length);
     memcpy(buffer, &ethHdr, 1526);
+    /*
     struct ipv4Header ipHdr = *(struct ipv4Header *) (buffer+sizeof(ethHdr));
     cout<<"........Ip details........"<<"\n";
 	cout<<"Id -> "<<ipHdr.id<<endl;
 	cout<<"Flag -> "<<ipHdr.flags<<endl;
 	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+    */
 	
     SendToSocket(sock, buffer, MaxWireSize, toName);
     // delete[] buffer;
