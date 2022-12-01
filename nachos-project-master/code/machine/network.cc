@@ -65,17 +65,21 @@ void NetworkInput::CallBack() {
     // schedule the next time to poll for a packet
     kernel->interrupt->Schedule(this, NetworkTime, NetworkRecvInt);
     
-    if (inHdr.srcMAC[0] != 0)  // do nothing if packet is already buffered
-        return;
-    if (!PollSocket(sock))  // do nothing if no packet to be read
-        return;
+    if (inHdr.srcMAC[0] != 0)  // checks if any new messg present
+        return;                // do nothing if packet is already buffered
+
+
+    if (!PollSocket(sock))  // reads if anything present in the socket
+        return;             // do nothing if no packet to be read
 
     // otherwise, read packet in
-    char *buffer = new char[MaxWireSize];
+    char *buffer = new char[MaxWireSize];                           //->>temp var not original buffer of post office
     ReadFromSocket(sock, buffer, MaxWireSize);
 
     // divide packet into header and data
-    inHdr = *(ethernetHeader *)buffer;
+    inHdr = *(ethernetHeader *)buffer;                             //inHdr=>inbox(1 pkt only)
+
+
     ASSERT((inHdr.destMAC[0] == MacPool[kernel->hostName][0])&&(inHdr.destMAC[1] == MacPool[kernel->hostName][1]) 
     &&(inHdr.destMAC[2] == MacPool[kernel->hostName][2])&&(inHdr.destMAC[3] == MacPool[kernel->hostName][3])
     &&(inHdr.destMAC[4] == MacPool[kernel->hostName][4])&&(inHdr.destMAC[5] == MacPool[kernel->hostName][5]));
@@ -98,7 +102,7 @@ void NetworkInput::CallBack() {
 ethernetHeader NetworkInput::Receive(char *data) {
     ethernetHeader hdr = inHdr;
 
-    inHdr.srcMAC[0] = 0;
+    inHdr.srcMAC[0] = 0;                    //making packet as rogue packet
     ipv4Header ipHdr = *(ipv4Header * )(hdr.payload+sizeof(UdpHeader));
     cout<<"Got the data from IP"<<endl;
     cout<<"Id -> "<<ipHdr.id<<endl;
@@ -106,10 +110,11 @@ ethernetHeader NetworkInput::Receive(char *data) {
 	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
     int v =ipHdr.frag_offset;
 	data_set.insert(pack(ipHdr.id,v,hdr));
-    ipHdr.frag_offset =0 ;
+    ipHdr.frag_offset = 0;
     ipHdr.len=0;
-    std::map<int,bool> flag;
-    std::map<int,bool>end;
+    std::map<int,bool> flag;                // continuos until that packet
+    std::map<int,bool>end;                  // did we receive last packet for this ID
+    
     int prv_id=-1;
     int prv_offset=0;
     int prv_len =0;
@@ -117,13 +122,13 @@ ethernetHeader NetworkInput::Receive(char *data) {
     {
         ipHdr = *(ipv4Header * )(u.second.payload+sizeof(UdpHeader));
         if(ipHdr.flags==0)
-        end[ipHdr.id]=true;
+            end[ipHdr.id]=true;
         if(prv_id==-1||prv_id==ipHdr.id)
         {
             if(prv_id==-1)
-            flag[ipHdr.id]=true;
+                flag[ipHdr.id]=true;
             if((prv_id==-1&&ipHdr.frag_offset==0)||8*prv_offset+prv_len==8*ipHdr.frag_offset)
-                prv_id = ipHdr.id,prv_offset = ipHdr.frag_offset,prv_len=ipHdr.len;
+                prv_id = ipHdr.id,  prv_offset = ipHdr.frag_offset,  prv_len = ipHdr.len;
             else
             {
                 cout<<"Did not find offset : "<<prv_offset+prv_len/8<<" , "<<ipHdr.frag_offset<<endl;
@@ -133,9 +138,11 @@ ethernetHeader NetworkInput::Receive(char *data) {
         else
         {
             flag[ipHdr.id]=true;
-            prv_id = ipHdr.id,prv_offset = ipHdr.frag_offset,prv_len=ipHdr.len;
+            prv_id = ipHdr.id, prv_offset = ipHdr.frag_offset, prv_len=ipHdr.len;
         }
     }
+
+
     string s;
     for( auto u:end)
     {
@@ -147,15 +154,17 @@ ethernetHeader NetworkInput::Receive(char *data) {
             {
                 ipHdr = *(ipv4Header * )(packet.second.payload+sizeof(UdpHeader));
                 if(ipHdr.id==u.first)
-                s+=packet.second.payload+sizeof(UdpHeader)+sizeof(ipv4Header);
+                    s+=packet.second.payload+sizeof(UdpHeader)+sizeof(ipv4Header);
             }
             cout<<"UDP packet with id : "<<u.first<<endl;
             cout<<s<<endl;
         }
     }
+
     if (hdr.srcMAC[0] != 0) {
         bcopy(inbox, data, MaxWireSize);
     }
+    
     return hdr;
 }
 

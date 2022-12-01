@@ -31,6 +31,7 @@
 //----------------------------------------------------------------------
 
 Kernel::Kernel(int argc, char **argv) {
+
     randomSlice = FALSE;
     debugUserProg = FALSE;
     consoleIn = NULL;   // default is stdin
@@ -305,6 +306,10 @@ void Kernel::NetworkTest() {
             data[i] = 'a'+i%26;
         }
         int datasize = strlen(data);
+        /*Usually port number also has to be determined by the application, 
+            as it was not used effectively, we simply are generating that in
+             send_data method of this class
+        */
         this->send_data(data,datasize,hostName,hostName-1);
         
 

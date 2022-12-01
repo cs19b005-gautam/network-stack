@@ -88,15 +88,18 @@ class NetworkInput : public CallBackObj {
     void CallBack();  // A packet may have arrived.
 
    private:
-    int sock;           // UNIX socket number for incoming packets
-    char sockName[32];  // File name corresponding to UNIX socket
-    std::set<pack >data_set;
+    int sock;                 // UNIX socket number for incoming packets
+    char sockName[32];        // File(file path) name corresponding to UNIX socket
+    std::set<pack >data_set;  // Collection of EthernetFrames Received
 
     CallBackObj *callWhenAvail;  // Interrupt handler, signalling packet has
                                  // 	arrived.
+
     bool packetAvail;            // Packet has arrived, can be pulled off of
                                  //   network
-    ethernetHeader inHdr;          // Information about arrived packet
+
+    ethernetHeader inHdr;       // Information about arrived packet   //->>Ethernet frame for each CallBack Called in the Kernel(Network Input)
+    
     char inbox[MaxWireSize];   // Data for arrived packet
 };
 
