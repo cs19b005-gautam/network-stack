@@ -57,14 +57,19 @@ class PacketHeader {
 class pack{
    public:
    int id;
+   int offset;
    ethernetHeader second;
-   pack(int a,ethernetHeader b){
-      id =a;
-      second = b;
+   pack(int a,int b,ethernetHeader c){
+      id = a;
+      offset = b;
+      second = c;
    }
       bool operator<(const pack& t) const
     {
+      if((this->id != t.id))
         return (this->id < t.id);
+      else
+         return (this->offset < t.offset);
     }
 };
 class NetworkInput : public CallBackObj {

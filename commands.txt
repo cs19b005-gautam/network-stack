@@ -1,0 +1,10 @@
+run switch 
+
+get data to :- 1
+./nachos -N -m 1
+
+send data from:- 2
+./nachos -N -m 2
+
+execute 
+./nachos -x

@@ -12,6 +12,8 @@
 #include "network.h"
 #include "main.h"
 #include "ipv4header.h"
+#include "udpheader.h"
+#include "map"
 #include <string>
 #include <cstring>
 
@@ -97,34 +99,59 @@ ethernetHeader NetworkInput::Receive(char *data) {
     ethernetHeader hdr = inHdr;
 
     inHdr.srcMAC[0] = 0;
-    ipv4Header ipHdr = *(ipv4Header * )hdr.payload;
+    ipv4Header ipHdr = *(ipv4Header * )(hdr.payload+sizeof(UdpHeader));
     cout<<"Got the data from IP"<<endl;
     cout<<"Id -> "<<ipHdr.id<<endl;
 	cout<<"Flag -> "<<ipHdr.flags<<endl;
 	cout<<"Offset -> " << ipHdr.frag_offset<<endl;
     int v =ipHdr.frag_offset;
-	data_set.insert(pack(v,hdr));
-    v = 0;
-    bool flag=true;
-    bool end=false;
+	data_set.insert(pack(ipHdr.id,v,hdr));
+    ipHdr.frag_offset =0 ;
+    ipHdr.len=0;
+    std::map<int,bool> flag;
+    std::map<int,bool>end;
+    int prv_id=-1;
+    int prv_offset=0;
+    int prv_len =0;
     for(auto u:data_set)
     {
-        ipHdr = *(ipv4Header * )u.second.payload;
+        ipHdr = *(ipv4Header * )(u.second.payload+sizeof(UdpHeader));
         if(ipHdr.flags==0)
-        end=true;
-        if(v==8*ipHdr.frag_offset)
+        end[ipHdr.id]=true;
+        if(prv_id==-1||prv_id==ipHdr.id)
         {
-            v +=ipHdr.len;
+            if(prv_id==-1)
+            flag[ipHdr.id]=true;
+            if((prv_id==-1&&ipHdr.frag_offset==0)||8*prv_offset+prv_len==8*ipHdr.frag_offset)
+                prv_id = ipHdr.id,prv_offset = ipHdr.frag_offset,prv_len=ipHdr.len;
+            else
+            {
+                cout<<"Did not find offset : "<<prv_offset+prv_len/8<<" , "<<ipHdr.frag_offset<<endl;
+                flag[ipHdr.id]=false;
+            }
         }
         else
         {
-            flag =false;
+            flag[ipHdr.id]=true;
+            prv_id = ipHdr.id,prv_offset = ipHdr.frag_offset,prv_len=ipHdr.len;
         }
     }
-    if(flag&&end)
+    string s;
+    for( auto u:end)
     {
-        for(auto u:data_set)
-            cout<<u.second.payload+sizeof(ipv4Header)<<endl;
+        cout<<"Found end of : "<<u.first<<endl;
+        if(flag[u.first]==true)
+        {
+            cout<<"Got all packets for : "<<u.first<<endl;
+            for(auto packet:data_set)
+            {
+                ipHdr = *(ipv4Header * )(packet.second.payload+sizeof(UdpHeader));
+                if(ipHdr.id==u.first)
+                s+=packet.second.payload+sizeof(UdpHeader)+sizeof(ipv4Header);
+            }
+            cout<<"UDP packet with id : "<<u.first<<endl;
+            cout<<s<<endl;
+        }
     }
     if (hdr.srcMAC[0] != 0) {
         bcopy(inbox, data, MaxWireSize);

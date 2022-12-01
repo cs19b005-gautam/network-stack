@@ -22,3 +22,10 @@ struct ipv4Header{
     in_addr_t src_addr;
     in_addr_t dest_addr;                // in_addr_t => uint32_t
 }__attribute__((packed));
+
+struct UdpHeader{
+	unsigned short int srcPort;
+	unsigned short int destPort;
+	unsigned short int length;
+	unsigned short int checksum;
+}__attribute__((packed));

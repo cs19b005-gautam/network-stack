@@ -46,6 +46,8 @@ class Kernel {
 
     void NetworkTest();  // interactive 2-machine network test
 
+    void send_data(char data[],int datasize,int from,int to);
+
     // These are public for notational convenience; really,
     // they're global variables used everywhere.
 

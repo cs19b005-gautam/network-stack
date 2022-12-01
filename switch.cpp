@@ -41,7 +41,7 @@ void when_set(int& s1,struct sockaddr_un & saddr1,char buf[],map<string, int>&ta
 	printf("--> %d\n", table[char_to_string(X->srcMAC)]);
 	printf("received %d bytes on S1 from %02X:%02X:%02X:%02X:%02X:%02X\n", retsz, X->srcMAC[0], X->srcMAC[1], X->srcMAC[2], X->srcMAC[3], X->srcMAC[4], X->srcMAC[5]);
 
-	struct ipv4Header ipHdr = *(struct ipv4Header *) (buf+26);
+	struct ipv4Header ipHdr = *(struct ipv4Header *) (X->payload+sizeof(UdpHeader));
 	cout<<"........Ip details........"<<"\n";
 	cout<<"Id -> "<<ipHdr.id<<endl;
 	cout<<"Flag -> "<<ipHdr.flags<<endl;

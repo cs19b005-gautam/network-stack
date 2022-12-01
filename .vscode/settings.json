@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "*.tcc": "c",
+        "functional": "c",
+        "syscall.h": "c"
     }
 }

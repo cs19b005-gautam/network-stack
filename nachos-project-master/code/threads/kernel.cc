@@ -204,6 +204,92 @@ void Kernel::ConsoleTest() {
 //  This test works best if each Nachos machine has its own window
 //----------------------------------------------------------------------
 
+void Kernel::send_data(char data[],int datasize,int from,int to){
+    cout<<"Sending via send_data function ___________"<<endl;
+    unsigned char* farHost = MacPool[to];
+    unsigned short int srcPort = 443;
+    unsigned short int destPort = 445;
+    
+
+    //Transport Layer
+    UdpHeader UdpHdr;
+    UdpHdr.srcPort = srcPort;
+    UdpHdr.destPort = destPort;
+    UdpHdr.checksum = 0;
+    UdpHdr.length = datasize+8;
+
+    UdpPacket udpPkt;
+    udpPkt.UdpHdr = UdpHdr;
+    udpPkt.data = data; 
+
+
+    //Network Layer
+    struct ipv4Header ipHdr;
+    memset(&ipHdr, 0, sizeof(ipHdr));
+    ipHdr.version = 4;
+    ipHdr.ihl = 20;
+    //ip.len;
+    srand(time(0));
+    ipHdr.id = rand()&(1<<16-1);
+    ipHdr.flags = 0;
+    ipHdr.frag_offset = 0;
+    ipHdr.check_sum = 0;
+    ipHdr.ttl = 255;
+    ipHdr.protocol = 17; //UDP protocol No. = 17
+    ipHdr.src_addr = IPpool[from];
+    ipHdr.dest_addr = IPpool[to];
+    
+    // TODO : Insert ipHdr.len, ipHdr.tos
+    // TODO : Covert each Fragment into packet and insert into Payload of Ethernet Frame
+    
+    //fragmentation
+    int numFrag = (udpPkt.UdpHdr.length-8)/1472 +1;
+    for(int i=0; i<numFrag; i++)
+    {
+
+        cout << "Fragmenting ip packet no." << i << "\n";
+        ipHdr.frag_offset = (i*1472)/8;
+        if(i!= numFrag-1)
+        {
+            cout << "NumFrag : " << i << ",\t" << numFrag << "\n";
+            ipHdr.flags = 7;
+        }
+        else
+        {
+            ipHdr.flags = 0;
+        }
+        
+        
+        cout<<"........Ip details........"<<i<<"\n";
+        cout<<"Id -> "<<ipHdr.id<<endl;
+        cout<<"Flag -> "<<ipHdr.flags<<endl;
+        cout<<"Offset -> " << ipHdr.frag_offset<<endl;
+        
+        struct ethernetHeader ethHdr;
+
+
+        char packetBuffer[1500];
+        int sizeLeft = i!=numFrag? 1472 : datasize%1472;
+        ipHdr.len = sizeLeft;
+        memset(&ethHdr, 0, sizeof(ethHdr));
+        memcpy(packetBuffer,&UdpHdr,sizeof(UdpHdr));
+        memcpy(packetBuffer+sizeof(UdpHdr), &ipHdr, sizeof(ipHdr));
+        memcpy(packetBuffer+sizeof(UdpHdr)+sizeof(ipHdr), data+i*1472, sizeLeft);
+        cout<<"size is "<<sizeof(UdpHdr)+sizeof(ipHdr)<<endl;
+        // To: destination machine, mailbox 0
+        // From: our machine, reply to: mailbox 1
+        
+        memcpy(ethHdr.destMAC, farHost, 6);
+        memcpy(ethHdr.srcMAC, MacPool[from], 6);
+        memcpy(ethHdr.payload,packetBuffer,1500);
+        char buf[sizeof(ipHdr)];
+        memcpy(buf, &ipHdr, sizeof(ipHdr));
+        //cout<<ethHdr.payload+sizeof(ipHdr)<<endl;
+        cout<<"sending"<<sizeof(ipHdr)<<endl;
+        postOfficeOut->Send(ethHdr); 
+    }
+}
+
 void Kernel::NetworkTest() {
     if (hostName <=4 || hostName >= 0) {
         
@@ -219,110 +305,7 @@ void Kernel::NetworkTest() {
             data[i] = 'a'+i%26;
         }
         int datasize = strlen(data);
-        //Sending port layers
-        unsigned short int srcPort = 443;
-        unsigned short int destPort = 445;
-        
-
-        //Transport Layer
-        UdpHeader UdpHdr;
-        UdpHdr.srcPort = srcPort;
-        UdpHdr.destPort = destPort;
-        UdpHdr.checksum = 0;
-        UdpHdr.length = datasize+8;
-
-        UdpPacket udpPkt;
-        udpPkt.UdpHdr = UdpHdr;
-        udpPkt.data = data; 
-
-
-        //Network Layer
-        struct ipv4Header ipHdr;
-        memset(&ipHdr, 0, sizeof(ipHdr));
-        ipHdr.version = 4;
-        ipHdr.ihl = 20;
-        //ip.len;
-        srand(time(0));
-        ipHdr.id = rand()&(1<<16-1);
-        ipHdr.flags = 0;
-        ipHdr.frag_offset = 0;
-        ipHdr.check_sum = 0;
-        ipHdr.ttl = 255;
-        ipHdr.protocol = 17; //UDP protocol No. = 17
-        ipHdr.src_addr = IPpool[hostName];
-        ipHdr.dest_addr = IPpool[1-hostName];
-        
-        // TODO : Insert ipHdr.len, ipHdr.tos
-        // TODO : Covert each Fragment into packet and insert into Payload of Ethernet Frame
-        
-        //fragmentation
-        int numFrag = (udpPkt.UdpHdr.length-8)/1472 +1;
-        for(int i=0; i<numFrag; i++)
-        {
-
-            cout << "Fragmenting ip packet no." << i << "\n";
-            ipHdr.frag_offset = (i*1472)/8;
-            if(i!= numFrag-1)
-            {
-                cout << "NumFrag : " << i << ",\t" << numFrag << "\n";
-                ipHdr.flags = 7;
-            }
-            else
-            {
-                ipHdr.flags = 0;
-            }
-            
-            
-            cout<<"........Ip details........"<<i<<"\n";
-            cout<<"Id -> "<<ipHdr.id<<endl;
-            cout<<"Flag -> "<<ipHdr.flags<<endl;
-            cout<<"Offset -> " << ipHdr.frag_offset<<endl;
-            
-            struct ethernetHeader ethHdr;
-
-
-            char packetBuffer[1500];
-            int sizeLeft = i!=numFrag? 1472 : datasize%1472;
-            ipHdr.len = sizeLeft;
-            memset(&ethHdr, 0, sizeof(ethHdr));
-            memcpy(packetBuffer, &ipHdr, sizeof(ipHdr));
-            memcpy(packetBuffer+sizeof(ipHdr), data+i*1472, sizeLeft);
-            
-            // To: destination machine, mailbox 0
-            // From: our machine, reply to: mailbox 1
-            
-            memcpy(ethHdr.destMAC, farHost, 6);
-            memcpy(ethHdr.srcMAC, MacPool[hostName], 6);
-            memcpy(ethHdr.payload,packetBuffer,1500);
-            char buf[sizeof(ipHdr)];
-            memcpy(buf, &ipHdr, sizeof(ipHdr));
-            //cout<<ethHdr.payload+sizeof(ipHdr)<<endl;
-            cout<<"sending"<<sizeof(ipHdr)<<endl;
-            postOfficeOut->Send(ethHdr); 
-        }
-
-        // ip.len = udpPkt.UdpHdr.length +ip.ihl;
-        
-        
-
-
-        // if we're machine 1, send to 0 and vice versa
-        /*farHost => our listener*/
-        //generating packet for to and from addresses
-        
-        //generating ethernet Header
-        
-        // PacketHeader pkthdr;
-        //setting all values in ethernet Header
-
-        // what does this buffer store
-        // char buffer[MaxMailSize];
-        
-
-        //generating IP header
-        
-
-
+        this->send_data(data,datasize,hostName,hostName-1);
         
 
     }
